@@ -1,3 +1,4 @@
 import libs = libgpuopen-ags-headers%lib{gpuopen-ags-headers}
 
+./: exe{driver}: include = ($cxx.target.class == 'windows')
 exe{driver}: {hxx cxx}{**} $libs testscript{**}
