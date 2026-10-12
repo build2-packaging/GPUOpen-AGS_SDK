@@ -1,7 +1,7 @@
 intf_libs = # Interface dependencies.
 #import xxxx_libs += libhello%lib{hello}
 
-lib{gpuopen-ags-headers}: hxx{**} $intf_libs
+lib{gpuopen-ags-headers}: hxx{**} file{*.hlsl} $intf_libs
 
 # Build options.
 #
@@ -25,3 +25,8 @@ hxx{*}:
   install         = include/
   install.subdirs = true
 }
+
+# The HLSL shader intrinsics, which shaders include from the same directory
+# as the header.
+#
+file{*.hlsl}: install = include/
