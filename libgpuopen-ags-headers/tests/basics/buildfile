@@ -2,3 +2,13 @@ import libs = libgpuopen-ags-headers%lib{gpuopen-ags-headers}
 
 ./: exe{driver}: include = ($cxx.target.class == 'windows')
 exe{driver}: {hxx cxx}{**} $libs testscript{**}
+
+# The upstream header declares the function pointer types of its entry points
+# with __declspec(dllexport), which GCC and Clang ignore with a warning. Clang
+# also warns with -pedantic about its forward declarations of the Direct3D
+# enums that follow their definitions.
+#
+if ($cxx.id == 'gcc')
+  cxx.coptions += -Wno-attributes
+elif ($cxx.id == 'clang' || $cxx.id == 'msvc-clang')
+  cxx.coptions += -Wno-ignored-attributes -Wno-gnu-redeclared-enum
