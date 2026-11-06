@@ -1,0 +1,7 @@
+project = libgpuopen-ags
+
+using version
+using config
+using test
+using install
+using dist

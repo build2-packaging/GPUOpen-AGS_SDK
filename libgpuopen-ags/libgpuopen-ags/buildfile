@@ -1,0 +1,25 @@
+intf_libs = # Interface dependencies.
+#import xxxx_libs += libhello%lib{hello}
+
+lib{gpuopen-ags}: hxx{**} $intf_libs
+
+# Build options.
+#
+cxx.poptions =+ "-I$out_root" "-I$src_root"
+
+# Export options.
+#
+lib{gpuopen-ags}:
+{
+  cxx.export.poptions = "-I$out_root" "-I$src_root"
+  cxx.export.libs = $intf_libs
+}
+
+# Install into the libgpuopen-ags/ subdirectory of, say, /usr/include/
+# recreating subdirectories.
+#
+hxx{*}:
+{
+  install         = include/libgpuopen-ags/
+  install.subdirs = true
+}

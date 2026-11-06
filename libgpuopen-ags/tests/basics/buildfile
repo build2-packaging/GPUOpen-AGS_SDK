@@ -1,0 +1,3 @@
+import libs = libgpuopen-ags%lib{gpuopen-ags}
+
+exe{driver}: {hxx cxx}{**} $libs testscript{**}

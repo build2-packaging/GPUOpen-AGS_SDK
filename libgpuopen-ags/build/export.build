@@ -1,0 +1,6 @@
+$out_root/
+{
+  include libgpuopen-ags/
+}
+
+export $out_root/libgpuopen-ags/$import.target
