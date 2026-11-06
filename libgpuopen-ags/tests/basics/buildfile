@@ -4,3 +4,10 @@ windows = ($cxx.target.class == 'windows')
 
 ./: exe{driver}: include = $windows
 exe{driver}: {hxx cxx}{**} $libs testscript{**}: include = $windows
+
+# Upstream amd_ags.h triggers -Wattributes / -Wgnu-redeclared-enum.
+#
+if ($cxx.id == 'gcc')
+  cxx.coptions += -Wno-attributes
+elif ($cxx.id == 'clang' || $cxx.id == 'msvc-clang')
+  cxx.coptions += -Wno-ignored-attributes -Wno-gnu-redeclared-enum
