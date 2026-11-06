@@ -1,16 +1,17 @@
 : 1
 name: libgpuopen-ags
-version: 0.1.0-a.0.z
+version: 6.3.1-a.0.z
 type: lib,binless
 language: c++
-project: build2-AGS_SDK
-summary: AMD AGS SDK
+project: gpuopen
+summary: AMD GPU Services (AGS) C++ library (prebuilt)
+topics: amd, ags, gpu, graphics driver, direct3d
 license: MIT ; MIT License.
 description-file: README.md
 package-description-file: PACKAGE-README.md
-url: https://example.org/upstream
-email: upstream@example.org
-package-url: https://github.com/build2-packaging/build2-AGS_SDK
+url: https://github.com/GPUOpen-LibrariesAndSDKs/AGS_SDK
+doc-url: https://gpuopen-librariesandsdks.github.io/ags/
+package-url: https://github.com/build2-packaging/GPUOpen-AGS_SDK
 package-email: packaging@build2.org ; Mailing list.
 depends: * build2 >= 0.18.0
 depends: * bpkg >= 0.18.0
