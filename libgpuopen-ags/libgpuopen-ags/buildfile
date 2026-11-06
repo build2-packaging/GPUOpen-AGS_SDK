@@ -1,6 +1,84 @@
 intf_libs = # Interface dependencies.
 #import xxxx_libs += libhello%lib{hello}
 
+# Map of upstream file names. Keys: <cxx.target.system>-<liba|libs|libi>[-<crt>].
+# Year for static names comes from the upstream listing so dist does not need it.
+#
+upstream_libs = [dir_path] "$src_base/lib"
+has_upstream = [bool] $directory_exists($upstream_libs)
+
+# Listing used only to generate the map. Keep out of dist and default update.
+#
+./: file{lib/**}: include = false
+file{lib/**}: dist = false
+
+./: buildfile{ags-binaries.build}
+
+buildfile{ags-binaries.build}:
+{
+  dist = true
+  clean = ($src_root != $out_root)
+}
+
+# Recipe: generate from upstream, or copy the shipped fragment. The ./:
+# declaration above is unconditional. This if only selects the recipe.
+#
+if $has_upstream
+{
+  years = [strings]
+  for f: $path_search('amd_ags_x64_*_MD.lib', $upstream_libs)
+  {
+    n = $leaf([path] $f)
+    if ($regex.match($n, 'amd_ags_x64_[0-9]+_MD\.lib'))
+      years += [strings] $regex.replace($n, 'amd_ags_x64_([0-9]+)_MD\.lib', '\1')
+  }
+
+  assert ($size($years) > 0) \
+    "no amd_ags_x64_*_MD.lib in lib/"
+
+  years = $sort($years)
+  ags_year = [string] $back($years)
+
+  buildfile{ags-binaries.build}:
+  {{
+    diag echo $>
+    y = $ags_year
+    echo "# Generated from upstream/ags_lib/lib. Do not edit." >$path($>)
+    echo "ags_bins = [string_map] \\" >>$path($>)
+    echo "  win32-msvc-libs@amd_ags_x64.dll \\" >>$path($>)
+    echo "  win32-msvc-libi@amd_ags_x64.lib \\" >>$path($>)
+    echo "  win32-msvc-liba-MD@amd_ags_x64_$(y)_MD.lib \\" >>$path($>)
+    echo "  win32-msvc-liba-MT@amd_ags_x64_$(y)_MT.lib \\" >>$path($>)
+    echo "  win32-msvc-liba-MDd@amd_ags_x64_$(y)_MDd.lib \\" >>$path($>)
+    echo "  win32-msvc-liba-MTd@amd_ags_x64_$(y)_MTd.lib \\" >>$path($>)
+    echo "  mingw32-libs@amd_ags_x64.dll \\" >>$path($>)
+    echo "  mingw32-libi@amd_ags_x64.lib" >>$path($>)
+  }}
+}
+else
+{
+  buildfile{ags-binaries.build}:
+  {{
+    diag cp $>
+
+    # Copying onto itself empties the file.
+    #
+    if ($src_root != $out_root)
+      cp $src_base/ags-binaries.build $path($>)
+    else
+      touch --after $src_base/ags-binaries.build $path($>)
+  }}
+}
+
+# During dist the generate recipe runs via dist = true. Load-time update
+# would race that, and ags_bins is only needed for download target names.
+#
+if ($build.meta_operation != 'dist')
+{
+  update buildfile{ags-binaries.build}
+  source $path(buildfile{ags-binaries.build})
+}
+
 lib{gpuopen-ags}: hxx{**} $intf_libs
 
 # Build options.
