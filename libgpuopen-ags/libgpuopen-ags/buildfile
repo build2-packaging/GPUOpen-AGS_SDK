@@ -1,8 +1,12 @@
-intf_libs = # Interface dependencies.
-#import xxxx_libs += libhello%lib{hello}
+# Prebuilt AGS binaries for x86_64-windows (shared DLL, MSVC static CRT variants).
+
+import intf_libs = libgpuopen-ags-headers%lib{gpuopen-ags-headers}
+
+# Upstream ships Windows MSVC x64/x86 only.
+#
+enabled = ($cxx.target.class == 'windows' && $cxx.target.cpu == 'x86_64')
 
 # Map of upstream file names. Keys: <cxx.target.system>-<liba|libs|libi>[-<crt>].
-# Year for static names comes from the upstream listing so dist does not need it.
 #
 upstream_libs = [dir_path] "$src_base/lib"
 has_upstream = [bool] $directory_exists($upstream_libs)
@@ -77,27 +81,152 @@ if ($build.meta_operation != 'dist')
 {
   update buildfile{ags-binaries.build}
   source $path(buildfile{ags-binaries.build})
-}
 
-lib{gpuopen-ags}: hxx{**} $intf_libs
+  # CRT from cxx.mode (/MT, -MD, ...). Default MD.
+  #
+  ags_crt = [string] 'MD'
 
-# Build options.
-#
-cxx.poptions =+ "-I$out_root" "-I$src_root"
+  if ($enabled && $cxx.target.system == 'win32-msvc')
+  {
+    for o: $cxx.mode
+    {
+      if ($regex.match($o, '[-/]M[TD]d?'))
+        ags_crt = [string] $regex.replace($o, '[-/](M[TD]d?)', '\1')
+    }
+  }
 
-# Export options.
-#
-lib{gpuopen-ags}:
-{
-  cxx.export.poptions = "-I$out_root" "-I$src_root"
-  cxx.export.libs = $intf_libs
-}
+  # Static libs are MSVC objects. Fail only if static is requested on MinGW.
+  #
+  if ($enabled && $cxx.target.system == 'mingw32' && $bin.lib == 'static')
+    fail 'libgpuopen-ags static libraries are MSVC objects, use bin.lib=shared with MinGW'
 
-# Install into the libgpuopen-ags/ subdirectory of, say, /usr/include/
-# recreating subdirectories.
-#
-hxx{*}:
-{
-  install         = include/libgpuopen-ags/
-  install.subdirs = true
+  ags_tag = "v$(version.major).$(version.minor).$(version.patch)"
+  ags_base_url = "https://raw.githubusercontent.com/GPUOpen-LibrariesAndSDKs/AGS_SDK/$(ags_tag)/ags_lib/lib"
+
+  # Non-Windows still names targets from win32-msvc keys (enabled=false).
+  #
+  map_sys = [string] ($enabled ? $cxx.target.system : 'win32-msvc')
+
+  dll_name = [string] ($ags_bins[$(map_sys)-libs])
+  implib_name = [string] ($ags_bins[$(map_sys)-libi])
+
+  assert ($dll_name != [null]) "ags_bins missing $(map_sys)-libs"
+  assert ($implib_name != [null]) "ags_bins missing $(map_sys)-libi"
+
+  dll = [path] "$out_base/$dll_name"
+  implib = [path] "$out_base/$implib_name"
+
+  if ($cxx.target.class != 'windows')
+  {
+    define libi: file
+  }
+
+  # Download into cache, symlink into out. Pattern matches upstream names only.
+  # For libs{} the libi{} group member is updated by the same recipe, so $>
+  # holds both paths.
+  #
+  <libs{~'/amd_ags_(.*)/'} libi{^'/amd_ags_\1.lib/'}>:
+  {{
+    cache = [dir_path] $config.libgpuopen_ags.cache
+
+    depdb hash $ags_base_url
+    diag curl $ags_base_url -> $>
+
+    mkdir --no-cleanup -p $cache
+    for p: $path($>)
+    {
+      name = [string] $leaf([path] $p)
+      dest = [path] $cache/$name
+      part = [path] "$(dest).part"
+
+      test -f $dest || \
+        curl -\# --fail --location --output $part "$ags_base_url/$name"
+      test -f $part && \
+        rm -f $dest && mv $part $dest &!$dest || true
+      rm -f $p && \
+        ln --symbolic $dest $p
+      touch $p
+    }
+  }}
+
+  liba{~'/amd_ags_(.*)/'}:
+  {{
+    cache = [dir_path] $config.libgpuopen_ags.cache
+
+    depdb hash $ags_base_url
+    diag curl $ags_base_url -> $>
+
+    mkdir --no-cleanup -p $cache
+    for p: $path($>)
+    {
+      name = [string] $leaf([path] $p)
+      dest = [path] $cache/$name
+      part = [path] "$(dest).part"
+
+      test -f $dest || \
+        curl -\# --fail --location --output $part "$ags_base_url/$name"
+      test -f $part && \
+        rm -f $dest && mv $part $dest &!$dest || true
+      rm -f $p && \
+        ln --symbolic $dest $p
+      touch $p
+    }
+  }}
+
+  ./: lib{gpuopen-ags}: include = $enabled
+
+  [rule_hint=cxx.link] \
+  lib{gpuopen-ags}: $intf_libs: include = $enabled
+
+  <libs{$dll} libi{$implib}>:
+  lib{gpuopen-ags}: libs{$dll}: include = ($enabled && $bin.lib != 'static')
+
+  # Year from the consumer MSVC toolset (cxx.target.version). Fallback is
+  # the newest year baked into ags-binaries.build.
+  #
+  md_name = [string] ($ags_bins[win32-msvc-liba-MD])
+  assert ($md_name != [null]) "ags_bins missing win32-msvc-liba-MD"
+  ags_year = [string] $regex.replace($md_name, 'amd_ags_x64_([0-9]+)_MD\.lib', '\1')
+
+  if ($enabled && $cxx.target.system == 'win32-msvc')
+  {
+    switch $cxx.target.version
+    {
+      case '14.5'
+        ags_year = [string] '2026'
+      case '14.3'
+        ags_year = [string] '2022'
+      case '14.2'
+        ags_year = [string] '2019'
+      case '14.1'
+        ags_year = [string] '2017'
+    }
+  }
+
+  # Declare all four CRT statics. include= picks the consumer's runtime.
+  #
+  for crt: MD MT MDd MTd
+  {
+    sn = [string] "amd_ags_x64_$(ags_year)_$(crt).lib"
+    sp = [path] "$out_base/$sn"
+    use = ($enabled && $cxx.target.system == 'win32-msvc' && $ags_crt == $crt)
+
+    liba{$sp}:
+    lib{gpuopen-ags}: liba{$sp}: include = $use
+
+    if $use
+      lib{gpuopen-ags}: cc.export.libs += liba{$sp}
+  }
+
+  if $enabled
+  {
+    lib{gpuopen-ags}:
+    {
+      cc.type = cc
+      cc.export.libs += $intf_libs
+    }
+
+    if ($bin.lib != 'static')
+      lib{gpuopen-ags}: cc.export.libs =+ libs{$dll}
+  }
 }

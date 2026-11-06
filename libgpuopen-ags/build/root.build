@@ -9,6 +9,10 @@ using cxx
 hxx{*}: extension = h
 cxx{*}: extension = cpp
 
+# Downloaded binary cache. Symlink only is a target, so clean keeps downloads.
+#
+config [dir_path] config.libgpuopen_ags.cache ?= $out_root
+
 # The test target for cross-testing (running tests under Wine, etc).
 #
 test.target = $cxx.target
