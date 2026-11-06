@@ -1,3 +1,6 @@
 import libs = libgpuopen-ags%lib{gpuopen-ags}
 
-exe{driver}: {hxx cxx}{**} $libs testscript{**}
+windows = ($cxx.target.class == 'windows')
+
+./: exe{driver}: include = $windows
+exe{driver}: {hxx cxx}{**} $libs testscript{**}: include = $windows
