@@ -1,0 +1,8 @@
+: 1
+name: libgpuopen-ags-headers
+version: 6.3.1
+type: lib,binless
+language: c++
+project: gpuopen
+summary: AMD GPU Services (AGS) C++ API headers
+license: MIT; MIT License.
